@@ -107,12 +107,11 @@ let shutdown socket command =
 module Config = Httpaf.Config
 
 module Client = struct
-  let request ?(config=Config.default) socket request ~error_handler ~response_handler =
+  let request ?(config=Config.default) socket (request:Httpaf.Request.t) ~error_handler ~response_handler =
     let module Client_connection = Httpaf.Client_connection in
-    let request_body, connection =
-      Client_connection.request ~config request ~error_handler ~response_handler in
-
-
+    let connection = Client_connection.create ~config in
+    let request_body =
+      Client_connection.request connection request ~error_handler ~response_handler in
     let read_buffer = Buffer.create config.read_buffer_size in
     let read_loop_exited, notify_read_loop_exited = Lwt.wait () in
 
@@ -133,6 +132,7 @@ module Client = struct
             read_loop_step ()
           end
 
+        | `Yield ->  read_loop_step ()
         | `Close ->
           Lwt.wakeup_later notify_read_loop_exited ();
           match socket with
